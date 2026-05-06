@@ -1,0 +1,48 @@
+services:
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./Nginx/nginx.conf:/etc/nginx/nginx.conf:ro   #arquivo de config substitui o padrão
+      - frontend_dist:/usr/share/nginx/html:ro        # pasta onde o Angular compilado vai ficar
+    depends_on:
+      - backend
+      - frontend                 # só sobe depois que os outros dois subirem
+
+  frontend:
+    build: ./Frontend  # Diz para o Docker executar o Dockerfile que está dentro da pasta
+    volumes:
+      - frontend_dist:/app/dist
+    environment:
+      - API_URL=http://localhost/api # Injeta uma variável de ambiente no container durante o build. O Angular pode ler isso para saber para onde apontar as chamadas HTTP.
+
+  backend:
+    build: ./Backend
+    environment:
+      - DBMariaURL=jdbc:mariadb://mariadb:3306/meusite
+      - DBMariaUser=app
+      - DBMariaPassword=app123
+      - QUARKUS_MONGODB_CONNECTION_STRING=mongodb://mongo:27017/meusite #junto com o  QUARKUS_DATASOURCE_JDBC_URL e os outro, subtituir esse no aplication prorieties
+    depends_on:
+      - mariadb
+      - mongo
+
+  mariadb:
+    image: mariadb:11
+    environment:
+      MARIADB_ROOT_PASSWORD: root123
+      MARIADB_DATABASE: meusite
+      MARIADB_USER: app
+      MARIADB_PASSWORD: app123
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    ports:
+      - "3306:3306"   # expõe local para você conectar com DBeaver etc
+
+  mongo:
+    image: mongo:7
+    volumes:
+      - mongo_data:/data/db
+    ports:
+      - "27017:27017"  # expõe local para MongoDB Compass
